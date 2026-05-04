@@ -119,19 +119,19 @@ We thought that was funny enough to mention.
 
 ## FAQ
 
-**Is this a joke?**
+**Is this a joke?**<br>
 It works. So no. But also a little bit yes.
 
-**Should I use this in production?**
+**Should I use this in production?**<br>
 You should not use any autonomous shell agent in production. But you knew that.
 
-**Is 150 lines a flex?**
+**Is 150 lines a flex?**<br>
 It's an observation. We just stopped pretending the harness was the hard part.
 
-**Can I swap in Claude / Gemini / etc?**
+**Can I swap in Claude / Gemini / etc?**<br>
 The Responses API is OpenAI-specific, but the pattern is universal. Port it in an afternoon.
 
-**Why not just use Claude Code / Codex?**
+**Why not just use Claude Code / Codex?**<br>
 You should. They're great. This is for the mass of developers who want to understand
 what's actually happening inside the black box — and for anyone who looked at a
 50,000-line agent framework and mass of configuration and thought *there has to be a simpler way*.
