@@ -52,6 +52,9 @@ coverage/
 .nyc_output/
 .pytest_cache/
 
+# Demo tooling
+.demo/
+
 # Misc
 *.bak
 *.tmp
