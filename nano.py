@@ -4,6 +4,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 from urllib.request import Request, urlopen
 
 API = "https://api.openai.com/v1/responses"
@@ -11,6 +12,8 @@ MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 MAX_STEPS = int(os.getenv("NANO_MAX_STEPS", "200"))
 APPROVE_ALL = os.getenv("NANO_APPROVE", "").lower() == "all"
 SKIP_DIRS = {".git", ".venv", "__pycache__", "node_modules", "venv"}
+SESSIONS = os.path.expanduser("~/.nano_sessions.json")
+CWD = os.getcwd()
 _TTY = sys.stderr.isatty()
 def _c(code, s): return f"\033[{code}m{s}\033[0m" if _TTY else s
 
@@ -125,26 +128,63 @@ def run(prompt, previous=None):
         response = respond([tool_output(call) for call in calls], response["id"])
     return "stopped: too many tool calls", response["id"]
 
-def repl():
-    previous = None
+def load_sessions():
+    try: return json.load(open(SESSIONS))
+    except (FileNotFoundError, json.JSONDecodeError): return []
+
+def save_session(rid, label):
+    ss = load_sessions()
+    ss = [s for s in ss if not (s["label"] == label and s["cwd"] == CWD)]
+    ss.append({"id": rid, "label": label[:80], "cwd": CWD, "ts": int(time.time())})
+    json.dump(ss[-50:], open(SESSIONS, "w"))
+
+def pick_session():
+    ss = [s for s in load_sessions() if s["cwd"] == CWD][-10:]
+    if not ss: sys.exit("no sessions in this directory")
+    for i, s in enumerate(reversed(ss)):
+        age = int(time.time()) - s["ts"]
+        label = f"{age//60}m" if age < 3600 else f"{age//3600}h" if age < 86400 else f"{age//86400}d"
+        print(f"  {_c(90, str(i))}  {s['label']}  {_c(90, label + ' ago')}")
+    try: choice = input(f"{_c(1,'nano')}{_c(90,'#')} ").strip()
+    except (EOFError, KeyboardInterrupt): print(); sys.exit(0)
+    try: return ss[-(int(choice) + 1)]
+    except (ValueError, IndexError): sys.exit("invalid session")
+
+def repl(previous=None, label=None):
     print(_c(1, "nano") + " repl " + _c(90, "(:q quit, :reset reset)"))
     while True:
         try:
             prompt = input(f"{_c(1,'nano')}{_c(90,'>')} ").strip()
         except (EOFError, KeyboardInterrupt):
-            print()
-            return
-        if prompt.lower() in (":q", "quit", "exit"):
-            return
+            print(); return
+        if prompt.lower() in (":q", "quit", "exit"): return
         if prompt.lower() in (":reset", "reset"):
-            previous = None
-            print(_c(90, "reset"))
-            continue
+            previous, label = None, None
+            print(_c(90, "reset")); continue
         if prompt:
             answer, previous = run(prompt, previous)
+            if not label: label = prompt
+            save_session(previous, label)
             print(answer)
 
 if __name__ == "__main__":
     api_key()
-    prompt = " ".join(sys.argv[1:])
-    print(run(prompt)[0]) if prompt else repl()
+    args = sys.argv[1:]
+    flag = args.pop(0) if args and args[0] in ("-c", "-s") else None
+    prompt = " ".join(args)
+    previous, label = None, None
+    if flag == "-s":
+        s = pick_session()
+        previous, label = s["id"], s["label"]
+        print(_c(90, f"resuming: {label}"))
+    elif flag == "-c":
+        ss = [s for s in load_sessions() if s["cwd"] == CWD]
+        if not ss: sys.exit("no sessions in this directory")
+        previous, label = ss[-1]["id"], ss[-1]["label"]
+        print(_c(90, f"continuing: {label}"))
+    if prompt:
+        answer, rid = run(prompt, previous)
+        save_session(rid, label or prompt)
+        print(answer)
+    else:
+        repl(previous, label)

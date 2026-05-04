@@ -1,7 +1,7 @@
 # nano.py
 
 **The models got good enough that the harness doesn't matter anymore.**
-**So we made the smallest one that proves it. One file. 150 lines. Zero dependencies.**
+**So we made the smallest one that proves it. One file. under 200 lines. Zero dependencies.**
 
 ```sh
 OPENAI_API_KEY=sk-... ./nano.py "fix the tests"
@@ -15,7 +15,7 @@ That's the whole thing. No, really.
 
 ---
 
-### Everything below is in the 150 lines. We checked.
+### Everything below is in the under 200 lines. We checked.
 
 > 📂 **Reads CLAUDE.md, AGENT.md, AGENTS.md, README.md** — automatic repo context, same files the real agents use
 >
@@ -28,8 +28,10 @@ That's the whole thing. No, really.
 > 💬 **Interactive REPL** — multi-turn sessions with persistent memory across turns
 >
 > ⚡ **Non-interactive CLI** — `./nano.py "fix the tests"` and walk away
+>
+> 🔄 **Session resume** — `./nano.py -c` picks up where you left off, zero local state (OpenAI stores the conversation)
 
-Plus: interactive REPL · one-shot mode · GPT-5.5 by default · any model via env var · multi-step tool chaining · approve-one / approve-all / deny · auto-approve mode · per-command cwd, timeout, and env · platform-aware system prompt · output capped at 12KB · forced 5-10 word command descriptions · session reset · zero dependencies · pure stdlib Python · one file you can read in 5 minutes
+Plus: interactive REPL · one-shot mode · session resume (`-c`) · session picker (`-s`) · GPT-5.5 by default · any model via env var · multi-step tool chaining · approve-one / approve-all / deny · auto-approve mode · per-command cwd, timeout, and env · platform-aware system prompt · output capped at 12KB · forced 5-10 word command descriptions · session reset · zero dependencies · pure stdlib Python · one file you can read in 5 minutes
 
 ---
 
@@ -59,6 +61,12 @@ OPENAI_API_KEY=sk-... ./nano.py "find the bug in auth.py and fix it"
 
 # Interactive REPL
 OPENAI_API_KEY=sk-... ./nano.py
+
+# Continue last session in this directory
+OPENAI_API_KEY=sk-... ./nano.py -c
+
+# Pick from recent sessions
+OPENAI_API_KEY=sk-... ./nano.py -s
 
 # YOLO mode (auto-approve everything, godspeed)
 NANO_APPROVE=all OPENAI_API_KEY=sk-... ./nano.py "run the tests and fix whatever breaks"
@@ -97,7 +105,7 @@ This gives a language model a shell on your computer. You should care about that
 - **`NANO_APPROVE=all` skips all prompts.** Only use this when you trust the workspace and the task.
 - **Output is capped at 12KB per command** so the model can't filibuster itself.
 
-Read the command before you press `y`. It's 150 lines — you can audit the whole thing over lunch.
+Read the command before you press `y`. It's under 200 lines — you can audit the whole thing over lunch.
 
 ## Configuration
 
@@ -125,7 +133,7 @@ It works. So no. But also a little bit yes.
 **Should I use this in production?**<br>
 You should not use any autonomous shell agent in production. But you knew that.
 
-**Is 150 lines a flex?**<br>
+**Is under 200 lines a flex?**<br>
 It's an observation. We just stopped pretending the harness was the hard part.
 
 **Can I swap in Claude / Gemini / etc?**<br>
@@ -140,7 +148,7 @@ There was.
 
 ## License
 
-MIT. Copy it, fork it, vendor it into your monorepo. It's 150 lines, not a SaaS.
+MIT. Copy it, fork it, vendor it into your monorepo. It's under 200 lines, not a SaaS.
 
 ---
 
