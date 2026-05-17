@@ -4,7 +4,7 @@
 **So we made the smallest one that proves it. One file. about 220 lines. Zero dependencies.**
 
 ```sh
-OPENAI_API_KEY=sk-... python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py)
+python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py)
 ```
 
 That's the whole thing. No, really.
@@ -49,7 +49,7 @@ is done. Pure Python stdlib. Copy it into any repo and go.
 
 ```sh
 # Run it straight from GitHub — no install, no clone, drops into a REPL
-OPENAI_API_KEY=sk-... python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py)
+python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py)
 
 # Or grab it
 curl -O https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py && chmod +x nano.py
