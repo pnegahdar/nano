@@ -15,7 +15,7 @@ That's the whole thing. No, really.
 
 ---
 
-### Everything below is in the under 200 lines. We checked.
+### Everything below ships in under 200 lines. We counted.
 
 > 📂 **Reads CLAUDE.md, AGENT.md, AGENTS.md, README.md** — automatic repo context, same files the real agents use
 >
@@ -35,17 +35,15 @@ Plus: interactive REPL · one-shot mode · session resume (`-c`) · session pick
 
 ---
 
-You know that mass of infrastructure behind Claude Code, Codex, Cursor, Devin — the
-frameworks, the runtimes, the graphs, the ceremonies, the 200MB node_modules?
+Most coding agents are built on top of serious infrastructure — frameworks,
+runtimes, graph orchestrators, thousands of lines of glue.
 
-Turns out all you actually need is a while loop, one shell tool, and a model that's
-not stupid anymore.
+It turns out you can get surprisingly far with a while loop, one shell tool,
+and a model that's good enough.
 
 `nano.py` is that loop. It sends context to GPT-5.5, lets it run shell commands,
 shows you what it wants to do, waits for your approval, and repeats until the job
 is done. Pure Python stdlib. Copy it into any repo and go.
-
-The uncomfortable part is how well it works.
 
 ## Quick Start
 
@@ -74,11 +72,10 @@ NANO_APPROVE=all OPENAI_API_KEY=sk-... ./nano.py "run the tests and fix whatever
 
 ## What It Doesn't Do
 
-- Install 47 packages
+- Install packages
 - Require a config file
 - Need a Docker container
 - Have a plugin system
-- Use LangChain
 
 ## The Architecture
 
@@ -94,11 +91,11 @@ while not done:
         done = True
 ```
 
-That's the architecture diagram. You're welcome.
+That's the architecture diagram.
 
 ## Safety
 
-This gives a language model a shell on your computer. You should care about that.
+This gives a language model a shell on your computer.
 
 - **Approval is on by default.** Every command shows you what it wants to run and why.
 - **You can approve one at a time**, or press `a` to approve all for the session.
@@ -111,7 +108,7 @@ Read the command before you press `y`. It's under 200 lines — you can audit th
 
 | Variable | Default | What it does |
 |---|---|---|
-| `OPENAI_API_KEY` | — | Required. You know what this is. |
+| `OPENAI_API_KEY` | — | Required. |
 | `OPENAI_MODEL` | `gpt-5.5` | Any model the Responses API supports. |
 | `NANO_MAX_STEPS` | `200` | Max tool calls per task before it stops. |
 | `NANO_APPROVE` | — | Set to `all` to auto-approve commands. |
@@ -123,18 +120,16 @@ read repo, form hypothesis, run command, observe, repeat.
 
 Wrap it in a harness, give it a budget, collect patches, and find out.
 
-We thought that was funny enough to mention.
-
 ## FAQ
 
 **Is this a joke?**<br>
 It works. So no. But also a little bit yes.
 
 **Should I use this in production?**<br>
-You should not use any autonomous shell agent in production. But you knew that.
+Yes. Why not?
 
-**Is under 200 lines a flex?**<br>
-It's an observation. We just stopped pretending the harness was the hard part.
+**Why so small?**<br>
+The models got good enough that the harness just doesn't need to be big anymore.
 
 **Can I swap in Claude / Gemini / etc?**<br>
 The Responses API is OpenAI-specific, but the pattern is universal. Port it in an afternoon.
@@ -142,13 +137,13 @@ The Responses API is OpenAI-specific, but the pattern is universal. Port it in a
 **Why not just use Claude Code / Codex?**<br>
 You should. They're great. This is for the mass of developers who want to understand
 what's actually happening inside the black box — and for anyone who looked at a
-50,000-line agent framework and mass of configuration and thought *there has to be a simpler way*.
+large agent framework and thought *there has to be a simpler way*.
 
 There was.
 
 ## License
 
-MIT. Copy it, fork it, vendor it into your monorepo. It's under 200 lines, not a SaaS.
+MIT. Copy it, fork it, vendor it into your monorepo.
 
 ---
 
