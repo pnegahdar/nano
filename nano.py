@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-import json
-import os
-import platform
-import subprocess
-import sys
-import threading
-import time
+import json, os, platform, subprocess, sys, threading, time
 from urllib.request import Request, urlopen
 
 try:
@@ -14,7 +8,6 @@ except ImportError:
     pass
 else:
     readline.parse_and_bind("\\C-l: clear-screen")
-
 API = "https://api.openai.com/v1/responses"
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
 MAX_STEPS = int(os.getenv("NANO_MAX_STEPS", "200"))
@@ -23,13 +16,12 @@ SKIP_DIRS = {".git", ".venv", "__pycache__", "node_modules", "venv"}
 SESSIONS = os.path.expanduser("~/.nano_sessions.json")
 CWD = os.getcwd()
 _TTY = sys.stderr.isatty()
-def _c(code, s): return f"\033[{code}m{s}\033[0m" if _TTY else s
-
-def _spinner(stop, frames="-\\|/"):
-    i = 0
-    while not stop.wait(0.1):
-        print(f"\r  {_c(90, frames[i % len(frames)] + ' thinking')}", end="", file=sys.stderr, flush=True)
-        i += 1
+def _color(code, text): return f"\033[{code}m{text}\033[0m" if _TTY else text
+def _spinner(done, frames="-\\|/"):
+    index = 0
+    while not done.wait(0.1):
+        print(f"\r  {_color(90, frames[index % len(frames)] + ' thinking')}", end="", file=sys.stderr, flush=True)
+        index += 1
     print("\r             \r", end="", file=sys.stderr, flush=True)
 
 def find_files(roots, names, limit=40):
@@ -48,7 +40,6 @@ def find_files(roots, names, limit=40):
     return ", ".join(sorted(dict.fromkeys(found))) or "none"
 
 def api_key(): return os.getenv("OPENAI_API_KEY") or sys.exit("set OPENAI_API_KEY")
-
 SYSTEM = f"""You are Nano, a general-purpose shell agent with one tool: execute_shell.
 Use it to inspect, edit, install, test, search, automate, and answer.
 Be concise, tenacious, and relentlessly useful. Keep taking shell steps until done or blocked.
@@ -76,54 +67,43 @@ TOOL = {
 
 def approve(args):
     global APPROVE_ALL
-    print(f"\n{_c(90, '# ' + args.get('description', 'No description'))}", file=sys.stderr)
-    print(f"{_c(32, '$ ' + args.get('command', ''))}", file=sys.stderr)
+    print(f"\n{_color(90, '# ' + args.get('description', 'No description'))}", file=sys.stderr)
+    print(f"{_color(32, '$ ' + args.get('command', ''))}", file=sys.stderr)
     for key in ("cwd", "timeout", "env"):
         if args.get(key) not in (None, "", {}):
-            print(f"{_c(90, f'{key}: {args[key]}')}", file=sys.stderr)
-    if APPROVE_ALL:
-        return True
+            print(f"{_color(90, f'{key}: {args[key]}')}", file=sys.stderr)
+    if APPROVE_ALL: return True
     try:
-        choice = input(f"Approve? {_c(32,'[y] Approve')}  {_c(33,'[a] Approve All')}  {_c(31,'[n] Deny')}: ").strip().lower()
-    except EOFError:
-        return False
+        choice = input(f"Approve? {_color(32,'[y] Approve')}  {_color(33,'[a] Approve All')}  {_color(31,'[n] Deny')}: ").strip().lower()
+    except EOFError: return False
     if choice in ("a", "all"):
-        APPROVE_ALL = True
-        return True
+        APPROVE_ALL = True; return True
     return choice in ("y", "yes")
 
 def execute_shell(command, description=None, cwd=None, timeout=60, env=None):
     run_env = {**os.environ, **(env or {})}
-    t0 = time.time()
     try:
-        p = subprocess.run(command, shell=True, cwd=os.path.abspath(cwd or os.getcwd()),
-                           env=run_env, text=True, stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT, timeout=timeout)
-        status = "ok" if p.returncode == 0 else f"exit {p.returncode}"
-        print(f"  {_c(32 if p.returncode == 0 else 31, status)} {_c(90, f'{time.time()-t0:.1f}s')}", file=sys.stderr)
-        return f"$ {command}\nexit {p.returncode}\n{p.stdout}"[-12000:]
-    except subprocess.TimeoutExpired as e:
-        print(f"  {_c(31, 'timeout')} {_c(90, f'{time.time()-t0:.1f}s')}", file=sys.stderr)
-        return f"$ {command}\ntimeout after {timeout}s\n{e.stdout or ''}"[-12000:]
-    except Exception as e:
-        return f"{type(e).__name__}: {e}"
+        process = subprocess.run(command, shell=True, cwd=os.path.abspath(cwd or os.getcwd()),
+                                 env=run_env, text=True, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, timeout=timeout)
+        return f"$ {command}\nexit {process.returncode}\n{process.stdout}"[-12000:]
+    except subprocess.TimeoutExpired as error:
+        return f"$ {command}\ntimeout after {timeout}s\n{error.stdout or ''}"[-12000:]
+    except Exception as error:
+        return f"{type(error).__name__}: {error}"
 
 def respond(payload, previous=None):
     body = {"model": MODEL, "instructions": SYSTEM, "tools": [TOOL], "input": payload}
     if previous: body["previous_response_id"] = previous
     headers = {"Authorization": f"Bearer {api_key()}", "Content-Type": "application/json"}
-    spin = None
-    if _TTY:
-        stop = threading.Event()
-        spin = threading.Thread(target=_spinner, args=(stop,), daemon=True)
-        spin.start()
+    spinner_done = threading.Event() if _TTY else None
+    spinner_thread = threading.Thread(target=_spinner, args=(spinner_done,), daemon=True) if spinner_done else None
+    if spinner_thread: spinner_thread.start()
     try:
-        with urlopen(Request(API, json.dumps(body).encode(), headers=headers)) as r:
-            return json.load(r)
+        with urlopen(Request(API, json.dumps(body).encode(), headers=headers)) as api_response:
+            return json.load(api_response)
     finally:
-        if spin:
-            stop.set()
-            spin.join()
+        if spinner_thread: spinner_done.set(); spinner_thread.join()
 
 def text(response):
     return "".join(
@@ -140,13 +120,13 @@ def tool_output(call):
     else:
         try:
             args = json.loads(call.get("arguments") or "{}")
-        except json.JSONDecodeError as e:
-            result = f"bad arguments: {e}"
+        except json.JSONDecodeError as error:
+            result = f"bad arguments: {error}"
         else:
             if not 5 <= len(args.get("description", "").split()) <= 10:
                 result = "bad arguments: description must be 5-10 words"
             else:
-                result = execute_shell(**args) if approve(args) else _c(31, "denied by user")
+                result = execute_shell(**args) if approve(args) else _color(31, "denied by user")
     return {"type": "function_call_output", "call_id": call["call_id"], "output": result}
 
 def run(prompt, previous=None):
@@ -162,41 +142,40 @@ def load_sessions():
     try: return json.load(open(SESSIONS))
     except (FileNotFoundError, json.JSONDecodeError): return []
 
-def save_session(rid, label):
-    ss = load_sessions()
-    ss = [s for s in ss if not (s["label"] == label and s["cwd"] == CWD)]
-    ss.append({"id": rid, "label": label[:80], "cwd": CWD, "ts": int(time.time())})
-    json.dump(ss[-50:], open(SESSIONS, "w"))
+def save_session(response_id, label):
+    sessions = load_sessions()
+    sessions = [session for session in sessions if not (session["label"] == label and session["cwd"] == CWD)]
+    sessions.append({"id": response_id, "label": label[:80], "cwd": CWD, "ts": int(time.time())})
+    json.dump(sessions[-50:], open(SESSIONS, "w"))
 
 def pick_session():
-    ss = [s for s in load_sessions() if s["cwd"] == CWD][-10:]
-    if not ss: sys.exit("no sessions in this directory")
-    for i, s in enumerate(reversed(ss)):
-        age = int(time.time()) - s["ts"]
+    sessions = [session for session in load_sessions() if session["cwd"] == CWD][-10:]
+    if not sessions: sys.exit("no sessions in this directory")
+    for index, session in enumerate(reversed(sessions)):
+        age = int(time.time()) - session["ts"]
         label = f"{age//60}m" if age < 3600 else f"{age//3600}h" if age < 86400 else f"{age//86400}d"
-        print(f"  {_c(90, str(i))}  {s['label']}  {_c(90, label + ' ago')}")
-    try: choice = input(f"{_c(1,'nano')}{_c(90,'#')} ").strip()
+        print(f"  {_color(90, str(index))}  {session['label']}  {_color(90, label + ' ago')}")
+    try: choice = input(f"{_color(1,'nano')}{_color(90,'#')} ").strip()
     except (EOFError, KeyboardInterrupt): print(); sys.exit(0)
-    try: return ss[-(int(choice) + 1)]
+    try: return sessions[-(int(choice) + 1)]
     except (ValueError, IndexError): sys.exit("invalid session")
 
 def repl(previous=None, label=None):
-    print(_c(1, "nano") + " repl " + _c(90, "(:q quit, :reset reset)"))
+    print(_color(1, "nano") + " repl " + _color(90, "(:q quit, :reset reset)"))
     while True:
         try:
-            prompt = input(_c(36, "nano > ")).strip()
+            prompt = input(_color(36, "nano > ")).strip()
         except (EOFError, KeyboardInterrupt):
             print(); return
         if not prompt: continue
         if prompt.lower() in (":q", "quit", "exit"): return
         if prompt.lower() in (":reset", "reset"):
             previous, label = None, None
-            print(_c(90, "reset")); continue
+            print(_color(90, "reset")); continue
         answer, previous = run(prompt, previous)
         if not label: label = prompt
         save_session(previous, label)
         print(answer)
-
 if __name__ == "__main__":
     api_key()
     args = sys.argv[1:]
@@ -204,17 +183,17 @@ if __name__ == "__main__":
     prompt = " ".join(args)
     previous, label = None, None
     if flag == "-s":
-        s = pick_session()
-        previous, label = s["id"], s["label"]
-        print(_c(90, f"resuming: {label}"))
+        session = pick_session()
+        previous, label = session["id"], session["label"]
+        print(_color(90, f"resuming: {label}"))
     elif flag == "-c":
-        ss = [s for s in load_sessions() if s["cwd"] == CWD]
-        if not ss: sys.exit("no sessions in this directory")
-        previous, label = ss[-1]["id"], ss[-1]["label"]
-        print(_c(90, f"continuing: {label}"))
+        sessions = [session for session in load_sessions() if session["cwd"] == CWD]
+        if not sessions: sys.exit("no sessions in this directory")
+        previous, label = sessions[-1]["id"], sessions[-1]["label"]
+        print(_color(90, f"continuing: {label}"))
     if prompt:
-        answer, rid = run(prompt, previous)
-        save_session(rid, label or prompt)
+        answer, response_id = run(prompt, previous)
+        save_session(response_id, label or prompt)
         print(answer)
     else:
         repl(previous, label)
