@@ -1,10 +1,10 @@
 # nano.py
 
 **The models got good enough that the harness doesn't matter anymore.**
-**So we made the smallest one that proves it. One file. under 200 lines. Zero dependencies.**
+**So we made the smallest one that proves it. One file. about 220 lines. Zero dependencies.**
 
 ```sh
-OPENAI_API_KEY=sk-... ./nano.py "fix the tests"
+OPENAI_API_KEY=sk-... python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py)
 ```
 
 That's the whole thing. No, really.
@@ -15,7 +15,7 @@ That's the whole thing. No, really.
 
 ---
 
-### Everything below ships in under 200 lines. We counted.
+### Everything below ships in about 220 lines. We counted.
 
 > 📂 **Reads CLAUDE.md, AGENT.md, AGENTS.md, README.md** — automatic repo context, same files the real agents use
 >
@@ -48,8 +48,8 @@ is done. Pure Python stdlib. Copy it into any repo and go.
 ## Quick Start
 
 ```sh
-# Run it straight from GitHub — no install, no clone
-OPENAI_API_KEY=sk-... python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py) "fix the tests"
+# Run it straight from GitHub — no install, no clone, drops into a REPL
+OPENAI_API_KEY=sk-... python3 <(curl -s https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py)
 
 # Or grab it
 curl -O https://raw.githubusercontent.com/pnegahdar/nano/main/nano.py && chmod +x nano.py
@@ -102,7 +102,7 @@ This gives a language model a shell on your computer.
 - **`NANO_APPROVE=all` skips all prompts.** Only use this when you trust the workspace and the task.
 - **Output is capped at 12KB per command** so the model can't filibuster itself.
 
-Read the command before you press `y`. It's under 200 lines — you can audit the whole thing over lunch.
+Read the command before you press `y`. It's about 220 lines — you can audit the whole thing over lunch.
 
 ## Configuration
 

@@ -4,8 +4,16 @@ import os
 import platform
 import subprocess
 import sys
+import threading
 import time
 from urllib.request import Request, urlopen
+
+try:
+    import readline
+except ImportError:
+    pass
+else:
+    readline.parse_and_bind("\\C-l: clear-screen")
 
 API = "https://api.openai.com/v1/responses"
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5.5")
@@ -16,6 +24,13 @@ SESSIONS = os.path.expanduser("~/.nano_sessions.json")
 CWD = os.getcwd()
 _TTY = sys.stderr.isatty()
 def _c(code, s): return f"\033[{code}m{s}\033[0m" if _TTY else s
+
+def _spinner(stop, frames="-\\|/"):
+    i = 0
+    while not stop.wait(0.1):
+        print(f"\r  {_c(90, frames[i % len(frames)] + ' thinking')}", end="", file=sys.stderr, flush=True)
+        i += 1
+    print("\r             \r", end="", file=sys.stderr, flush=True)
 
 def find_files(roots, names, limit=40):
     home = os.path.expanduser("~")
@@ -37,6 +52,7 @@ def api_key(): return os.getenv("OPENAI_API_KEY") or sys.exit("set OPENAI_API_KE
 SYSTEM = f"""You are Nano, a general-purpose shell agent with one tool: execute_shell.
 Use it to inspect, edit, install, test, search, automate, and answer.
 Be concise, tenacious, and relentlessly useful. Keep taking shell steps until done or blocked.
+Output short plain-text snippets optimized for terminal reading; no markdown rendering or syntax highlighting.
 Never run destructive commands unless explicitly requested.
 cwd: {os.getcwd()}
 platform: {platform.platform()}
@@ -78,12 +94,16 @@ def approve(args):
 
 def execute_shell(command, description=None, cwd=None, timeout=60, env=None):
     run_env = {**os.environ, **(env or {})}
+    t0 = time.time()
     try:
         p = subprocess.run(command, shell=True, cwd=os.path.abspath(cwd or os.getcwd()),
                            env=run_env, text=True, stdout=subprocess.PIPE,
                            stderr=subprocess.STDOUT, timeout=timeout)
+        status = "ok" if p.returncode == 0 else f"exit {p.returncode}"
+        print(f"  {_c(32 if p.returncode == 0 else 31, status)} {_c(90, f'{time.time()-t0:.1f}s')}", file=sys.stderr)
         return f"$ {command}\nexit {p.returncode}\n{p.stdout}"[-12000:]
     except subprocess.TimeoutExpired as e:
+        print(f"  {_c(31, 'timeout')} {_c(90, f'{time.time()-t0:.1f}s')}", file=sys.stderr)
         return f"$ {command}\ntimeout after {timeout}s\n{e.stdout or ''}"[-12000:]
     except Exception as e:
         return f"{type(e).__name__}: {e}"
@@ -92,8 +112,18 @@ def respond(payload, previous=None):
     body = {"model": MODEL, "instructions": SYSTEM, "tools": [TOOL], "input": payload}
     if previous: body["previous_response_id"] = previous
     headers = {"Authorization": f"Bearer {api_key()}", "Content-Type": "application/json"}
-    with urlopen(Request(API, json.dumps(body).encode(), headers=headers)) as r:
-        return json.load(r)
+    spin = None
+    if _TTY:
+        stop = threading.Event()
+        spin = threading.Thread(target=_spinner, args=(stop,), daemon=True)
+        spin.start()
+    try:
+        with urlopen(Request(API, json.dumps(body).encode(), headers=headers)) as r:
+            return json.load(r)
+    finally:
+        if spin:
+            stop.set()
+            spin.join()
 
 def text(response):
     return "".join(
@@ -154,18 +184,18 @@ def repl(previous=None, label=None):
     print(_c(1, "nano") + " repl " + _c(90, "(:q quit, :reset reset)"))
     while True:
         try:
-            prompt = input(f"{_c(1,'nano')}{_c(90,'>')} ").strip()
+            prompt = input(_c(36, "nano > ")).strip()
         except (EOFError, KeyboardInterrupt):
             print(); return
+        if not prompt: continue
         if prompt.lower() in (":q", "quit", "exit"): return
         if prompt.lower() in (":reset", "reset"):
             previous, label = None, None
             print(_c(90, "reset")); continue
-        if prompt:
-            answer, previous = run(prompt, previous)
-            if not label: label = prompt
-            save_session(previous, label)
-            print(answer)
+        answer, previous = run(prompt, previous)
+        if not label: label = prompt
+        save_session(previous, label)
+        print(answer)
 
 if __name__ == "__main__":
     api_key()
